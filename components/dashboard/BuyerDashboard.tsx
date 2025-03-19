@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,52 @@ type Contract = {
   status: "pending" | "active" | "completed" | "cancelled";
   createdAt: string;
   deliveryDate: string;
+  buyerId?: string;
 };
+
+// Sample contracts for demonstration
+const sampleContracts: Omit<Contract, "id" | "buyerId">[] = [
+  {
+    cropName: "Premium Potatoes",
+    quantity: 150,
+    price: 35,
+    farmerId: "sample-farmer-1",
+    farmerName: "Vikram Singh",
+    status: "active",
+    createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    deliveryDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    cropName: "Organic Wheat",
+    quantity: 800,
+    price: 40,
+    farmerId: "sample-farmer-2",
+    farmerName: "Aman Patel",
+    status: "pending",
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    deliveryDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    cropName: "Fresh Oranges",
+    quantity: 250,
+    price: 90,
+    farmerId: "sample-farmer-3",
+    farmerName: "Priya Sharma",
+    status: "completed",
+    createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+    deliveryDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    cropName: "Banana Bunch",
+    quantity: 180,
+    price: 55,
+    farmerId: "sample-farmer-4",
+    farmerName: "Rajesh Kumar",
+    status: "cancelled",
+    createdAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(),
+    deliveryDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  }
+];
 
 export function BuyerDashboard() {
   const { user } = useAuth();
@@ -43,7 +88,28 @@ export function BuyerDashboard() {
           contractsData.push({ id: doc.id, ...doc.data() } as Contract);
         });
         
-        setContracts(contractsData);
+        // If no contracts found, add sample contracts (only in development)
+        if (contractsData.length === 0 && process.env.NODE_ENV === "development") {
+          const addedContracts: Contract[] = [];
+          
+          for (const sampleContract of sampleContracts) {
+            try {
+              const contractData = {
+                ...sampleContract,
+                buyerId: user.uid,
+              };
+              
+              const docRef = await addDoc(collection(db, "contracts"), contractData);
+              addedContracts.push({ id: docRef.id, ...contractData });
+            } catch (error) {
+              console.error("Error adding sample contract:", error);
+            }
+          }
+          
+          setContracts(addedContracts);
+        } else {
+          setContracts(contractsData);
+        }
       } catch (error) {
         console.error("Error fetching contracts:", error);
       } finally {
@@ -60,6 +126,30 @@ export function BuyerDashboard() {
 
   if (loading) {
     return <div className="text-center py-10">Loading your dashboard...</div>;
+  }
+
+  // Empty state when no contracts are available
+  if (contracts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Buyer Dashboard</h1>
+          <Link href="/marketplace">
+            <Button>Browse Marketplace</Button>
+          </Link>
+        </div>
+
+        <div className="text-center py-20">
+          <h2 className="text-2xl font-semibold mb-3">No Contracts Yet</h2>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            Browse the marketplace to find products and create contract proposals with farmers.
+          </p>
+          <Link href="/marketplace">
+            <Button size="lg">Explore Marketplace</Button>
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (

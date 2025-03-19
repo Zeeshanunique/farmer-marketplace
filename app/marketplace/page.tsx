@@ -148,24 +148,33 @@ export default function MarketplacePage() {
     setOpenDialog(true);
   };
 
-  const handleSubmitProposal = () => {
-    // In a real application, this would create a contract in Firestore
-    console.log("Creating contract proposal:", {
-      listingId: selectedListing?.id,
-      farmerId: selectedListing?.farmerId,
-      farmerName: selectedListing?.farmerName,
-      buyerId: user?.uid,
-      buyerName: userData?.fullName,
-      cropName: selectedListing?.cropName,
-      quantity,
-      price,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      deliveryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-    });
+  const handleSubmitProposal = async () => {
+    if (!user || !userData || !selectedListing) return;
     
-    setOpenDialog(false);
-    alert("Contract proposal submitted successfully!");
+    try {
+      // Create the contract in Firestore
+      const contractData = {
+        listingId: selectedListing.id,
+        farmerId: selectedListing.farmerId,
+        farmerName: selectedListing.farmerName,
+        buyerId: user.uid,
+        buyerName: userData.fullName,
+        cropName: selectedListing.cropName,
+        quantity,
+        price,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        deliveryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+      };
+      
+      await addDoc(collection(db, "contracts"), contractData);
+      
+      setOpenDialog(false);
+      alert("Contract proposal submitted successfully!");
+    } catch (error) {
+      console.error("Error creating contract:", error);
+      alert("Failed to submit proposal. Please try again.");
+    }
   };
 
   if (loading) {
