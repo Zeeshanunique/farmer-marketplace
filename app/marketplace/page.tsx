@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
 
 type Listing = {
   id: string;
@@ -23,6 +24,46 @@ type Listing = {
   harvestDate: string;
   createdAt: string;
 };
+
+// Sample listings for demonstration
+const sampleListings: Omit<Listing, "id">[] = [
+  {
+    farmerId: "sample1",
+    farmerName: "Rajesh Kumar",
+    cropName: "Organic Tomatoes",
+    cropCategory: "Vegetables",
+    availableQuantity: 500,
+    minPrice: 25,
+    description: "Fresh organic tomatoes grown without pesticides. Ideal for restaurants and food processors looking for quality produce.",
+    location: "Nashik, Maharashtra",
+    harvestDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date().toISOString(),
+  },
+  {
+    farmerId: "sample2",
+    farmerName: "Anita Patel",
+    cropName: "Basmati Rice",
+    cropCategory: "Grains",
+    availableQuantity: 1000,
+    minPrice: 60,
+    description: "Premium quality basmati rice with exceptional aroma. Long grain variety suitable for export and premium restaurants.",
+    location: "Karnal, Haryana",
+    harvestDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date().toISOString(),
+  },
+  {
+    farmerId: "sample3",
+    farmerName: "Mohammed Khan",
+    cropName: "Alphonso Mangoes",
+    cropCategory: "Fruits",
+    availableQuantity: 300,
+    minPrice: 200,
+    description: "The king of mangoes! Premium Alphonso mangoes known for their sweet taste and aromatic flavor. Perfect for direct consumption and pulp production.",
+    location: "Ratnagiri, Maharashtra",
+    harvestDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date().toISOString(),
+  },
+];
 
 export default function MarketplacePage() {
   const { user, userData } = useAuth();
@@ -48,8 +89,25 @@ export default function MarketplacePage() {
           listingsData.push({ id: doc.id, ...doc.data() } as Listing);
         });
         
-        setListings(listingsData);
-        setFilteredListings(listingsData);
+        // If no listings found, add sample listings to Firebase (only in development)
+        if (listingsData.length === 0 && process.env.NODE_ENV === "development") {
+          const addedListings: Listing[] = [];
+          
+          for (const sampleListing of sampleListings) {
+            try {
+              const docRef = await addDoc(collection(db, "listings"), sampleListing);
+              addedListings.push({ id: docRef.id, ...sampleListing });
+            } catch (error) {
+              console.error("Error adding sample listing:", error);
+            }
+          }
+          
+          setListings(addedListings);
+          setFilteredListings(addedListings);
+        } else {
+          setListings(listingsData);
+          setFilteredListings(listingsData);
+        }
       } catch (error) {
         console.error("Error fetching listings:", error);
       } finally {
@@ -120,7 +178,32 @@ export default function MarketplacePage() {
 
   return (
     <div className="container py-10">
-      <h1 className="mb-6 text-3xl font-bold">Marketplace</h1>
+      {/* Marketplace Header */}
+      <div className="max-w-3xl mx-auto mb-10 text-center">
+        <h1 className="mb-4 text-3xl font-bold">Marketplace</h1>
+        <p className="mb-6 text-lg text-gray-600">
+          Connect directly with farmers and secure contracts for high-quality agricultural produce.
+          Browse available listings or use filters to find specific crops.
+        </p>
+        
+        {userData?.userType === "farmer" ? (
+          <Link href="/create-listing">
+            <Button size="lg" className="mx-auto">Create New Listing</Button>
+          </Link>
+        ) : !user ? (
+          <div className="space-y-3">
+            <p className="font-medium text-gray-700">Sign in to propose contracts with farmers</p>
+            <div className="flex justify-center gap-4">
+              <Link href="/sign-in">
+                <Button variant="outline">Sign In</Button>
+              </Link>
+              <Link href="/sign-up">
+                <Button>Sign Up</Button>
+              </Link>
+            </div>
+          </div>
+        ) : null}
+      </div>
       
       {/* Search and Filter */}
       <div className="flex flex-col gap-4 mb-8 md:flex-row">
@@ -147,61 +230,92 @@ export default function MarketplacePage() {
         </div>
       </div>
       
-      {/* Listings */}
+      {/* Marketplace Instructions */}
       {filteredListings.length === 0 ? (
-        <div className="p-10 text-center text-muted-foreground">
-          No listings found. Try adjusting your search or filters.
+        <div className="p-10 text-center">
+          <h3 className="mb-4 text-xl font-medium">No listings found</h3>
+          <p className="mb-6 text-muted-foreground">
+            Try adjusting your search or filters, or check back later for new listings.
+          </p>
+          
+          {userData?.userType === "farmer" && (
+            <Link href="/create-listing">
+              <Button>Create Your First Listing</Button>
+            </Link>
+          )}
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredListings.map((listing) => (
-            <Card key={listing.id}>
-              <CardHeader>
-                <CardTitle>{listing.cropName}</CardTitle>
-                <CardDescription>
-                  by {listing.farmerName} • {listing.location}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <p className="text-sm">{listing.description}</p>
-                  <div className="grid grid-cols-2 gap-2">
+        <>
+          <div className="mb-6">
+            <h2 className="mb-2 text-xl font-medium">Available Listings</h2>
+            <p className="text-muted-foreground">
+              Browse these listings and propose contracts directly with farmers.
+            </p>
+          </div>
+          
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredListings.map((listing) => (
+              <Card key={listing.id} className="overflow-hidden border-t-4" style={{borderTopColor: getCategoryColor(listing.cropCategory)}}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-muted-foreground">Available</p>
-                      <p>{listing.availableQuantity} kg</p>
+                      <CardTitle>{listing.cropName}</CardTitle>
+                      <CardDescription>
+                        by {listing.farmerName} • {listing.location}
+                      </CardDescription>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Min. Price</p>
-                      <p>₹{listing.minPrice} per kg</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Category</p>
-                      <p>{listing.cropCategory}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Harvest Date</p>
-                      <p>{new Date(listing.harvestDate).toLocaleDateString()}</p>
+                    <div className="px-2 py-1 text-xs font-medium text-white rounded-full" style={{backgroundColor: getCategoryColor(listing.cropCategory)}}>
+                      {listing.cropCategory}
                     </div>
                   </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                {userData?.userType === "buyer" ? (
-                  <Button
-                    className="w-full"
-                    onClick={() => handleProposeContract(listing)}
-                  >
-                    Propose Contract
-                  </Button>
-                ) : (
-                  <Button className="w-full" variant="outline" disabled>
-                    You are a Farmer
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-sm">{listing.description}</p>
+                    <div className="grid grid-cols-2 gap-2 mt-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Available</p>
+                        <p className="font-medium">{listing.availableQuantity} kg</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Min. Price</p>
+                        <p className="font-medium">₹{listing.minPrice} per kg</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Total Value</p>
+                        <p className="font-medium">₹{listing.availableQuantity * listing.minPrice}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Harvest Date</p>
+                        <p className="font-medium">{new Date(listing.harvestDate).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  {userData?.userType === "buyer" ? (
+                    <Button
+                      className="w-full"
+                      onClick={() => handleProposeContract(listing)}
+                    >
+                      Propose Contract
+                    </Button>
+                  ) : userData?.userType === "farmer" ? (
+                    <Button className="w-full" variant="outline" disabled>
+                      You are a Farmer
+                    </Button>
+                  ) : (
+                    <Link href="/sign-in" className="w-full">
+                      <Button className="w-full" variant="outline">
+                        Sign in to Propose
+                      </Button>
+                    </Link>
+                  )}
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
       
       {/* Contract Proposal Dialog */}
@@ -253,4 +367,22 @@ export default function MarketplacePage() {
       </Dialog>
     </div>
   );
+}
+
+// Helper function to get color for category
+function getCategoryColor(category: string): string {
+  switch (category) {
+    case "Vegetables":
+      return "#22c55e"; // green-500
+    case "Fruits":
+      return "#f97316"; // orange-500
+    case "Grains":
+      return "#eab308"; // yellow-500
+    case "Dairy":
+      return "#06b6d4"; // cyan-500
+    case "Poultry":
+      return "#ec4899"; // pink-500
+    default:
+      return "#6366f1"; // indigo-500
+  }
 } 
