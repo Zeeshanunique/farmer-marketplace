@@ -19,6 +19,7 @@ export default function ProfilePage() {
   const [location, setLocation] = useState("");
   const [phone, setPhone] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -52,6 +53,17 @@ export default function ProfilePage() {
       console.error("Error updating profile:", error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      router.push("/sign-in");
+    } catch (error) {
+      console.error("Error during logout:", error);
+      setIsLoggingOut(false);
     }
   };
 
@@ -163,8 +175,8 @@ export default function ProfilePage() {
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={logout}>
-                Sign Out
+              <Button variant="outline" onClick={handleLogout} disabled={isLoggingOut}>
+                {isLoggingOut ? "Signing Out..." : "Sign Out"}
               </Button>
               <Button onClick={() => setIsEditing(true)}>
                 Edit Profile
