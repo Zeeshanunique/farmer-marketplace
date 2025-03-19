@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,52 @@ type Contract = {
   status: "pending" | "active" | "completed" | "cancelled";
   createdAt: string;
   deliveryDate: string;
+  farmerId?: string;
 };
+
+// Sample contracts for demonstration
+const sampleContracts: Omit<Contract, "id" | "farmerId">[] = [
+  {
+    cropName: "Organic Tomatoes",
+    quantity: 200,
+    price: 25,
+    buyerId: "sample-buyer-1",
+    buyerName: "Fresh Foods Inc.",
+    status: "active",
+    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    deliveryDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    cropName: "Rice",
+    quantity: 500,
+    price: 60,
+    buyerId: "sample-buyer-2",
+    buyerName: "Metro Supermarket",
+    status: "pending",
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    deliveryDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    cropName: "Red Apples",
+    quantity: 300,
+    price: 75,
+    buyerId: "sample-buyer-3",
+    buyerName: "Organic Market Co.",
+    status: "completed",
+    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+    deliveryDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    cropName: "Green Chillies",
+    quantity: 100,
+    price: 45,
+    buyerId: "sample-buyer-4",
+    buyerName: "Spice Traders Ltd.",
+    status: "cancelled",
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    deliveryDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  }
+];
 
 export function FarmerDashboard() {
   const { user } = useAuth();
@@ -43,7 +88,28 @@ export function FarmerDashboard() {
           contractsData.push({ id: doc.id, ...doc.data() } as Contract);
         });
         
-        setContracts(contractsData);
+        // If no contracts found, add sample contracts (only in development)
+        if (contractsData.length === 0 && process.env.NODE_ENV === "development") {
+          const addedContracts: Contract[] = [];
+          
+          for (const sampleContract of sampleContracts) {
+            try {
+              const contractData = {
+                ...sampleContract,
+                farmerId: user.uid,
+              };
+              
+              const docRef = await addDoc(collection(db, "contracts"), contractData);
+              addedContracts.push({ id: docRef.id, ...contractData });
+            } catch (error) {
+              console.error("Error adding sample contract:", error);
+            }
+          }
+          
+          setContracts(addedContracts);
+        } else {
+          setContracts(contractsData);
+        }
       } catch (error) {
         console.error("Error fetching contracts:", error);
       } finally {
@@ -60,6 +126,30 @@ export function FarmerDashboard() {
 
   if (loading) {
     return <div className="text-center py-10">Loading your dashboard...</div>;
+  }
+
+  // Empty state when no contracts are available
+  if (contracts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Farmer Dashboard</h1>
+          <Link href="/create-listing">
+            <Button>Create New Listing</Button>
+          </Link>
+        </div>
+
+        <div className="text-center py-20">
+          <h2 className="text-2xl font-semibold mb-3">No Contracts Yet</h2>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            Start by creating crop listings. Once buyers show interest, contract proposals will appear here.
+          </p>
+          <Link href="/create-listing">
+            <Button size="lg">Create Your First Listing</Button>
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
