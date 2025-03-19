@@ -1,103 +1,102 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="flex flex-col min-h-[calc(100vh-4rem)]">
+      {/* Hero Section */}
+      <section className="flex flex-col items-center justify-center px-4 py-24 text-center bg-gradient-to-b from-green-50 to-white">
+        <h1 className="max-w-4xl text-4xl font-bold tracking-tight text-green-900 sm:text-5xl md:text-6xl">
+          Assured Contract Farming for Stable Market Access
+        </h1>
+        <p className="max-w-2xl mt-6 text-lg text-gray-600">
+          Connect directly with buyers, secure contracts, and get guaranteed payments for your produce. Reduce market risks and enhance your income stability.
+        </p>
+        <div className="flex flex-wrap justify-center gap-4 mt-10">
+          <Link href="/sign-up" passHref>
+            <Button size="lg" className="px-8 py-6 text-lg">
+              Get Started
+            </Button>
+          </Link>
+          <Link href="/marketplace" passHref>
+            <Button size="lg" variant="outline" className="px-8 py-6 text-lg">
+              Explore Marketplace
+            </Button>
+          </Link>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 bg-white">
+        <div className="container px-4 mx-auto">
+          <h2 className="mb-16 text-3xl font-bold text-center">How FarmConnect Works</h2>
+          <div className="grid gap-8 md:grid-cols-3">
+            <div className="p-6 text-center bg-white border rounded-lg shadow-sm">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 text-white bg-green-600 rounded-full">
+                1
+              </div>
+              <h3 className="mb-3 text-xl font-medium">Create Your Profile</h3>
+              <p className="text-gray-600">
+                Sign up as a farmer or buyer and create your detailed profile to showcase your products or requirements.
+              </p>
+            </div>
+            <div className="p-6 text-center bg-white border rounded-lg shadow-sm">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 text-white bg-green-600 rounded-full">
+                2
+              </div>
+              <h3 className="mb-3 text-xl font-medium">Negotiate Contracts</h3>
+              <p className="text-gray-600">
+                Connect with potential partners, negotiate terms, and establish transparent contracts with fair pricing.
+              </p>
+            </div>
+            <div className="p-6 text-center bg-white border rounded-lg shadow-sm">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 text-white bg-green-600 rounded-full">
+                3
+              </div>
+              <h3 className="mb-3 text-xl font-medium">Secure Payments</h3>
+              <p className="text-gray-600">
+                Fulfill your contract obligations and receive timely, secure payments through our platform.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonial Section */}
+      <section className="py-20 bg-green-50">
+        <div className="container px-4 mx-auto">
+          <h2 className="mb-16 text-3xl font-bold text-center">Success Stories</h2>
+          <div className="grid gap-8 md:grid-cols-2">
+            <div className="p-6 bg-white rounded-lg shadow-sm">
+              <p className="mb-4 italic text-gray-600">
+                "Since joining FarmConnect, I've secured contracts for my entire harvest before the growing season even begins. This has removed the stress of market fluctuations and improved my income predictability."
+              </p>
+              <p className="font-medium">- Rajesh Kumar, Tomato Farmer</p>
+            </div>
+            <div className="p-6 bg-white rounded-lg shadow-sm">
+              <p className="mb-4 italic text-gray-600">
+                "As a food processing company, we need consistent quality and supply. FarmConnect has helped us establish direct relationships with farmers, ensuring we get the best produce while supporting local agriculture."
+              </p>
+              <p className="font-medium">- Priya Sharma, Food Processing Manager</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 text-center bg-green-900 text-white">
+        <div className="container px-4 mx-auto">
+          <h2 className="mb-6 text-3xl font-bold">Ready to Transform Your Farming Business?</h2>
+          <p className="max-w-2xl mx-auto mb-10 text-green-100">
+            Join thousands of farmers and buyers already benefiting from assured contract farming.
+          </p>
+          <Link href="/sign-up" passHref>
+            <Button size="lg" variant="outline" className="border-white hover:bg-white hover:text-green-900">
+              Sign Up Now
+            </Button>
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }
