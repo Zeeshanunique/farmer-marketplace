@@ -76,12 +76,14 @@ export default function MarketplacePage() {
   const [price, setPrice] = useState<number>(0);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const categories = ["Vegetables", "Fruits", "Grains", "Dairy", "Poultry"];
 
   useEffect(() => {
     const fetchListings = async () => {
       try {
+        // First attempt to get data from Firestore
         const querySnapshot = await getDocs(collection(db, "listings"));
         const listingsData: Listing[] = [];
         
@@ -89,27 +91,61 @@ export default function MarketplacePage() {
           listingsData.push({ id: doc.id, ...doc.data() } as Listing);
         });
         
-        // If no listings found, add sample listings to Firebase (only in development)
-        if (listingsData.length === 0 && process.env.NODE_ENV === "development") {
-          const addedListings: Listing[] = [];
-          
-          for (const sampleListing of sampleListings) {
-            try {
-              const docRef = await addDoc(collection(db, "listings"), sampleListing);
-              addedListings.push({ id: docRef.id, ...sampleListing });
-            } catch (error) {
-              console.error("Error adding sample listing:", error);
+        // If no listings found in Firestore
+        if (listingsData.length === 0) {
+          try {
+            // Attempt to add sample listings to Firestore if we're in development mode
+            if (process.env.NODE_ENV === "development") {
+              const addedListings: Listing[] = [];
+              
+              for (const sampleListing of sampleListings) {
+                try {
+                  const docRef = await addDoc(collection(db, "listings"), sampleListing);
+                  addedListings.push({ id: docRef.id, ...sampleListing });
+                } catch (addError) {
+                  console.error("Error adding sample listing:", addError);
+                }
+              }
+              
+              // If we successfully added some listings
+              if (addedListings.length > 0) {
+                setListings(addedListings);
+                setFilteredListings(addedListings);
+                setLoading(false);
+                return;
+              }
             }
+            
+            // If we couldn't add sample listings to Firestore or not in development,
+            // just use the sample data directly without storing in Firebase
+            const mockListings = sampleListings.map((listing, index) => ({
+              ...listing,
+              id: `sample-${index}`,
+            }));
+            
+            setListings(mockListings);
+            setFilteredListings(mockListings);
+          } catch (mockError) {
+            console.error("Error setting up mock listings:", mockError);
+            setError("Unable to load listings. Please try again later.");
           }
-          
-          setListings(addedListings);
-          setFilteredListings(addedListings);
         } else {
+          // We got actual listings from Firestore
           setListings(listingsData);
           setFilteredListings(listingsData);
         }
       } catch (error) {
         console.error("Error fetching listings:", error);
+        
+        // Fallback to sample data if Firebase query fails
+        const mockListings = sampleListings.map((listing, index) => ({
+          ...listing,
+          id: `sample-${index}`,
+        }));
+        
+        setListings(mockListings);
+        setFilteredListings(mockListings);
+        setError("Unable to connect to database. Showing sample data instead.");
       } finally {
         setLoading(false);
       }
@@ -179,14 +215,21 @@ export default function MarketplacePage() {
 
   if (loading) {
     return (
-      <div className="container py-10">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="text-center">Loading marketplace...</div>
       </div>
     );
   }
 
   return (
-    <div className="container py-10">
+    <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      {/* Error notification */}
+      {error && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800">
+          <p>{error}</p>
+        </div>
+      )}
+      
       {/* Marketplace Header */}
       <div className="max-w-3xl mx-auto mb-10 text-center">
         <h1 className="mb-4 text-3xl font-bold">Marketplace</h1>
@@ -215,7 +258,7 @@ export default function MarketplacePage() {
       </div>
       
       {/* Search and Filter */}
-      <div className="flex flex-col gap-4 mb-8 md:flex-row">
+      <div className="max-w-5xl mx-auto flex flex-col gap-4 mb-8 md:flex-row">
         <div className="flex-1">
           <Input
             placeholder="Search crops, farmers, or descriptions..."
@@ -223,7 +266,7 @@ export default function MarketplacePage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div>
+        <div className="md:w-60">
           <select
             className="w-full p-2 border rounded-md"
             value={selectedCategory}
@@ -241,7 +284,7 @@ export default function MarketplacePage() {
       
       {/* Marketplace Instructions */}
       {filteredListings.length === 0 ? (
-        <div className="p-10 text-center">
+        <div className="max-w-5xl mx-auto p-10 text-center">
           <h3 className="mb-4 text-xl font-medium">No listings found</h3>
           <p className="mb-6 text-muted-foreground">
             Try adjusting your search or filters, or check back later for new listings.
@@ -254,7 +297,7 @@ export default function MarketplacePage() {
           )}
         </div>
       ) : (
-        <>
+        <div className="max-w-7xl mx-auto">
           <div className="mb-6">
             <h2 className="mb-2 text-xl font-medium">Available Listings</h2>
             <p className="text-muted-foreground">
@@ -324,7 +367,7 @@ export default function MarketplacePage() {
               </Card>
             ))}
           </div>
-        </>
+        </div>
       )}
       
       {/* Contract Proposal Dialog */}
