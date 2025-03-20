@@ -2,6 +2,44 @@
 
 A comprehensive platform that facilitates assured contract farming agreements between farmers and buyers. This platform enables transparent communication, secure contracts, and timely payments, ensuring farmers have a reliable market for their crops.
 
+## Deployment
+
+### Deploying to Vercel
+
+To deploy the application to Vercel, follow these steps:
+
+1. Push your code to a GitHub repository
+2. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+3. Click on "Add New..." and select "Project"
+4. Import your GitHub repository
+5. Configure as follows:
+   - Framework Preset: Next.js
+   - Root Directory: ./
+   - Build Command: npm run build
+   - Output Directory: .next
+   - Environment Variables: Add any Firebase API keys and other secrets
+
+6. Click "Deploy"
+
+## Environment Setup
+
+To set up the development environment:
+
+```bash
+# Install dependencies
+npm install
+
+# Run the development server
+npm run dev
+```
+
+## Project Structure
+
+- `/app` - Next.js App Router pages and components
+- `/components` - Reusable UI components
+- `/lib` - Utility functions and Firebase configuration
+- `/public` - Static assets
+
 ## Features
 
 - **User Authentication**: Separate accounts for farmers and buyers
