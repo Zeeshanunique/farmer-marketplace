@@ -1,20 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export function Navbar() {
   const { user, userData, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   
   const isActive = (path: string) => {
     return pathname === path;
@@ -26,6 +21,25 @@ export function Navbar() {
       .map((n) => n[0])
       .join("")
       .toUpperCase();
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await logout();
+      router.push("/sign-in");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  const navigateTo = (path: string) => {
+    if (path === "/dashboard" && !userData) {
+      // If userData isn't loaded yet, wait before navigating
+      console.log("Waiting for user data to load before navigating to dashboard");
+      return;
+    }
+    
+    router.push(path);
   };
 
   return (
@@ -58,28 +72,32 @@ export function Navbar() {
         
         <div>
           {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative w-8 h-8 rounded-full">
-                  <Avatar>
-                    <AvatarFallback>
-                      {userData?.fullName ? getInitials(userData.fullName) : "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>
-                  <Link href="/dashboard" className="w-full">Dashboard</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Link href="/profile" className="w-full">Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={logout}>
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center space-x-3">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => navigateTo("/dashboard")}
+                className={isActive("/dashboard") ? "font-medium" : ""}
+              >
+                Dashboard
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => navigateTo("/profile")}
+                className={isActive("/profile") ? "font-medium" : ""}
+              >
+                Profile
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                Sign Out
+              </Button>
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>
+                  {userData?.fullName ? getInitials(userData.fullName) : "U"}
+                </AvatarFallback>
+              </Avatar>
+            </div>
           ) : (
             <div className="flex items-center space-x-2">
               <Link href="/sign-in" passHref>

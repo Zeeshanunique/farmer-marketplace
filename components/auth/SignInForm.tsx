@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -46,8 +47,37 @@ export function SignInForm() {
     setError("");
     
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      router.push("/dashboard");
+      // Sign in the user
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+      
+      // Get user data from Firestore to determine type (farmer/buyer)
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        // User data exists, navigate to dashboard
+        router.push("/dashboard");
+      } else {
+        // User exists in auth but not in Firestore - let's create a default record
+        try {
+          // Default to 'buyer' userType as a safe default (can be changed in profile)
+          const defaultUserType = "buyer";
+          await setDoc(userDocRef, {
+            uid: user.uid,
+            fullName: user.displayName || values.email.split('@')[0],
+            email: values.email,
+            userType: defaultUserType,
+            createdAt: new Date().toISOString(),
+          });
+          
+          console.log("Created missing user document for:", user.uid);
+          router.push("/dashboard");
+        } catch (docError) {
+          console.error("Error creating missing user document:", docError);
+          setError("Error setting up your account. Please try again or contact support.");
+        }
+      }
     } catch (error: any) {
       setError("Invalid email or password. Please try again.");
       console.error("Error during sign in:", error.message);

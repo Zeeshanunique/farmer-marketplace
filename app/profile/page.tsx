@@ -11,29 +11,32 @@ import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function ProfilePage() {
-  const { user, userData, loading, logout } = useAuth();
+  const { user, userData, loading, logout, refreshUserData } = useAuth();
   const router = useRouter();
-  const [isClient, setIsClient] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState("");
   const [location, setLocation] = useState("");
   const [phone, setPhone] = useState("");
+  const [userType, setUserType] = useState<"farmer" | "buyer">("buyer");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
-    
+    // Redirect if user is not authenticated
     if (!loading && !user) {
       router.push("/sign-in");
     }
-    
+  }, [loading, user, router]);
+
+  // Update form state when userData changes
+  useEffect(() => {
     if (userData) {
       setFullName(userData.fullName || "");
       setLocation(userData.location || "");
       setPhone(userData.phone || "");
+      setUserType(userData.userType);
     }
-  }, [user, userData, loading, router]);
+  }, [userData]);
 
   const handleSaveProfile = async () => {
     if (!user || !userData) return;
@@ -45,9 +48,12 @@ export default function ProfilePage() {
         fullName,
         location,
         phone,
+        userType,
         updatedAt: new Date().toISOString(),
       });
       
+      // Refresh user data to update UI
+      await refreshUserData();
       setIsEditing(false);
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -60,14 +66,17 @@ export default function ProfilePage() {
     setIsLoggingOut(true);
     try {
       await logout();
-      router.push("/sign-in");
+      // Use replace to avoid back navigation issues
+      router.replace("/sign-in");
     } catch (error) {
       console.error("Error during logout:", error);
+    } finally {
       setIsLoggingOut(false);
     }
   };
 
-  if (loading || !isClient) {
+  // Show loading state while authentication is being checked
+  if (loading) {
     return (
       <div className="container py-10">
         <div className="text-center">Loading...</div>
@@ -75,8 +84,13 @@ export default function ProfilePage() {
     );
   }
 
+  // Don't render anything if user is not authenticated
   if (!user || !userData) {
-    return null; // Will redirect in the useEffect
+    return (
+      <div className="container py-10">
+        <div className="text-center">Please sign in to view your profile</div>
+      </div>
+    );
   }
 
   return (
@@ -96,10 +110,32 @@ export default function ProfilePage() {
             <div className="p-2 border rounded-md bg-muted/50">{userData.email}</div>
           </div>
           
-          <div className="space-y-2">
-            <div className="text-sm text-muted-foreground">Account Type</div>
-            <div className="p-2 border rounded-md bg-muted/50 capitalize">{userData.userType}</div>
-          </div>
+          {isEditing ? (
+            <div className="space-y-2">
+              <Label htmlFor="userType">Account Type</Label>
+              <div className="flex gap-4">
+                <Button
+                  type="button"
+                  variant={userType === "farmer" ? "default" : "outline"}
+                  onClick={() => setUserType("farmer")}
+                >
+                  Farmer
+                </Button>
+                <Button
+                  type="button"
+                  variant={userType === "buyer" ? "default" : "outline"}
+                  onClick={() => setUserType("buyer")}
+                >
+                  Buyer
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">Account Type</div>
+              <div className="p-2 border rounded-md bg-muted/50 capitalize">{userData.userType}</div>
+            </div>
+          )}
           
           {isEditing ? (
             <>
@@ -155,11 +191,11 @@ export default function ProfilePage() {
           <div className="pt-4">
             <div className="text-sm text-muted-foreground">Member Since</div>
             <div className="pt-1">
-              {new Date(userData.createdAt).toLocaleDateString(undefined, { 
+              {userData.createdAt ? new Date(userData.createdAt).toLocaleDateString(undefined, { 
                 year: 'numeric', 
                 month: 'long', 
                 day: 'numeric' 
-              })}
+              }) : "Unknown"}
             </div>
           </div>
         </CardContent>
