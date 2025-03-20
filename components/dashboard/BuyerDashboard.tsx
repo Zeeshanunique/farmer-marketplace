@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, doc, updateDoc } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
+import { toast } from "@/components/ui/use-toast";
 
 type Contract = {
   id: string;
@@ -20,6 +21,7 @@ type Contract = {
   createdAt: string;
   deliveryDate: string;
   buyerId?: string;
+  paymentStatus?: "pending" | "completed";
 };
 
 // Sample contracts for demonstration
@@ -70,58 +72,127 @@ export function BuyerDashboard() {
   const { user } = useAuth();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingContract, setProcessingContract] = useState<string | null>(null);
+
+  const fetchContracts = async () => {
+    if (!user) return;
+
+    try {
+      const q = query(
+        collection(db, "contracts"),
+        where("buyerId", "==", user.uid)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const contractsData: Contract[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        contractsData.push({ id: doc.id, ...doc.data() } as Contract);
+      });
+      
+      // If no contracts found, add sample contracts (only in development)
+      if (contractsData.length === 0 && process.env.NODE_ENV === "development") {
+        const addedContracts: Contract[] = [];
+        
+        for (const sampleContract of sampleContracts) {
+          try {
+            const contractData = {
+              ...sampleContract,
+              buyerId: user.uid,
+              paymentStatus: "pending"
+            };
+            
+            const docRef = await addDoc(collection(db, "contracts"), contractData);
+            addedContracts.push({ id: docRef.id, ...contractData });
+          } catch (error) {
+            console.error("Error adding sample contract:", error);
+          }
+        }
+        
+        setContracts(addedContracts);
+      } else {
+        setContracts(contractsData);
+      }
+    } catch (error) {
+      console.error("Error fetching contracts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchContracts = async () => {
-      if (!user) return;
-
-      try {
-        const q = query(
-          collection(db, "contracts"),
-          where("buyerId", "==", user.uid)
-        );
-        
-        const querySnapshot = await getDocs(q);
-        const contractsData: Contract[] = [];
-        
-        querySnapshot.forEach((doc) => {
-          contractsData.push({ id: doc.id, ...doc.data() } as Contract);
-        });
-        
-        // If no contracts found, add sample contracts (only in development)
-        if (contractsData.length === 0 && process.env.NODE_ENV === "development") {
-          const addedContracts: Contract[] = [];
-          
-          for (const sampleContract of sampleContracts) {
-            try {
-              const contractData = {
-                ...sampleContract,
-                buyerId: user.uid,
-              };
-              
-              const docRef = await addDoc(collection(db, "contracts"), contractData);
-              addedContracts.push({ id: docRef.id, ...contractData });
-            } catch (error) {
-              console.error("Error adding sample contract:", error);
-            }
-          }
-          
-          setContracts(addedContracts);
-        } else {
-          setContracts(contractsData);
-        }
-      } catch (error) {
-        console.error("Error fetching contracts:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchContracts();
   }, [user]);
 
   const getContractsByStatus = (status: Contract["status"]) => {
     return contracts.filter((contract) => contract.status === status);
+  };
+
+  const handleMakePayment = async (contractId: string) => {
+    if (!user) return;
+    
+    setProcessingContract(contractId);
+    try {
+      // In a real app, here you would integrate a payment gateway
+      // For this demo, we'll just mark the payment as completed
+      await updateDoc(doc(db, "contracts", contractId), {
+        paymentStatus: "completed",
+        paymentDate: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Update local state
+      setContracts(contracts.map(contract => 
+        contract.id === contractId ? {...contract, paymentStatus: "completed"} : contract
+      ));
+      
+      toast({
+        title: "Payment Successful",
+        description: "Your payment has been processed successfully.",
+      });
+    } catch (error) {
+      console.error("Error processing payment:", error);
+      toast({
+        title: "Payment Failed",
+        description: "There was an error processing your payment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingContract(null);
+    }
+  };
+
+  const handleCancelRequest = async (contractId: string) => {
+    if (!user) return;
+    
+    setProcessingContract(contractId);
+    try {
+      await updateDoc(doc(db, "contracts", contractId), {
+        status: "cancelled",
+        cancelledBy: "buyer",
+        cancellationReason: "Cancelled by buyer",
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Update local state
+      setContracts(contracts.map(contract => 
+        contract.id === contractId ? {...contract, status: "cancelled"} : contract
+      ));
+      
+      toast({
+        title: "Request Cancelled",
+        description: "Your contract request has been cancelled.",
+      });
+    } catch (error) {
+      console.error("Error cancelling request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel the request. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingContract(null);
+    }
   };
 
   if (loading) {
@@ -235,15 +306,33 @@ export function BuyerDashboard() {
                           <p className="text-sm text-muted-foreground">Delivery Date</p>
                           <p>{new Date(contract.deliveryDate).toLocaleDateString()}</p>
                         </div>
+                        {contract.paymentStatus && (
+                          <div>
+                            <p className="text-sm text-muted-foreground">Payment Status</p>
+                            <p className="capitalize">{contract.paymentStatus}</p>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                     <CardFooter className="flex justify-between">
                       <Button variant="outline">View Details</Button>
-                      {status === "active" && (
-                        <Button>Make Payment</Button>
+                      {status === "active" && contract.paymentStatus !== "completed" && (
+                        <Button 
+                          onClick={() => handleMakePayment(contract.id)}
+                          disabled={processingContract === contract.id}
+                        >
+                          {processingContract === contract.id ? "Processing..." : "Make Payment"}
+                        </Button>
                       )}
                       {status === "pending" && (
-                        <Button variant="outline" className="text-red-500">Cancel Request</Button>
+                        <Button 
+                          variant="outline" 
+                          className="text-red-500"
+                          onClick={() => handleCancelRequest(contract.id)}
+                          disabled={processingContract === contract.id}
+                        >
+                          {processingContract === contract.id ? "Processing..." : "Cancel Request"}
+                        </Button>
                       )}
                     </CardFooter>
                   </Card>

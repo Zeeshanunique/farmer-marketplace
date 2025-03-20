@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, doc, updateDoc } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
+import { toast } from "@/components/ui/use-toast";
 
 type Contract = {
   id: string;
@@ -70,58 +71,153 @@ export function FarmerDashboard() {
   const { user } = useAuth();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingContract, setProcessingContract] = useState<string | null>(null);
+
+  const fetchContracts = async () => {
+    if (!user) return;
+
+    try {
+      const q = query(
+        collection(db, "contracts"),
+        where("farmerId", "==", user.uid)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const contractsData: Contract[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        contractsData.push({ id: doc.id, ...doc.data() } as Contract);
+      });
+      
+      // If no contracts found, add sample contracts (only in development)
+      if (contractsData.length === 0 && process.env.NODE_ENV === "development") {
+        const addedContracts: Contract[] = [];
+        
+        for (const sampleContract of sampleContracts) {
+          try {
+            const contractData = {
+              ...sampleContract,
+              farmerId: user.uid,
+            };
+            
+            const docRef = await addDoc(collection(db, "contracts"), contractData);
+            addedContracts.push({ id: docRef.id, ...contractData });
+          } catch (error) {
+            console.error("Error adding sample contract:", error);
+          }
+        }
+        
+        setContracts(addedContracts);
+      } else {
+        setContracts(contractsData);
+      }
+    } catch (error) {
+      console.error("Error fetching contracts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchContracts = async () => {
-      if (!user) return;
-
-      try {
-        const q = query(
-          collection(db, "contracts"),
-          where("farmerId", "==", user.uid)
-        );
-        
-        const querySnapshot = await getDocs(q);
-        const contractsData: Contract[] = [];
-        
-        querySnapshot.forEach((doc) => {
-          contractsData.push({ id: doc.id, ...doc.data() } as Contract);
-        });
-        
-        // If no contracts found, add sample contracts (only in development)
-        if (contractsData.length === 0 && process.env.NODE_ENV === "development") {
-          const addedContracts: Contract[] = [];
-          
-          for (const sampleContract of sampleContracts) {
-            try {
-              const contractData = {
-                ...sampleContract,
-                farmerId: user.uid,
-              };
-              
-              const docRef = await addDoc(collection(db, "contracts"), contractData);
-              addedContracts.push({ id: docRef.id, ...contractData });
-            } catch (error) {
-              console.error("Error adding sample contract:", error);
-            }
-          }
-          
-          setContracts(addedContracts);
-        } else {
-          setContracts(contractsData);
-        }
-      } catch (error) {
-        console.error("Error fetching contracts:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchContracts();
   }, [user]);
 
   const getContractsByStatus = (status: Contract["status"]) => {
     return contracts.filter((contract) => contract.status === status);
+  };
+
+  const handleAcceptContract = async (contractId: string) => {
+    if (!user) return;
+    
+    setProcessingContract(contractId);
+    try {
+      await updateDoc(doc(db, "contracts", contractId), {
+        status: "active",
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Update local state
+      setContracts(contracts.map(contract => 
+        contract.id === contractId ? {...contract, status: "active"} : contract
+      ));
+      
+      toast({
+        title: "Contract Accepted",
+        description: "The contract has been accepted successfully.",
+      });
+    } catch (error) {
+      console.error("Error accepting contract:", error);
+      toast({
+        title: "Error",
+        description: "Failed to accept the contract. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingContract(null);
+    }
+  };
+
+  const handleDeclineContract = async (contractId: string) => {
+    if (!user) return;
+    
+    setProcessingContract(contractId);
+    try {
+      await updateDoc(doc(db, "contracts", contractId), {
+        status: "cancelled",
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Update local state
+      setContracts(contracts.map(contract => 
+        contract.id === contractId ? {...contract, status: "cancelled"} : contract
+      ));
+      
+      toast({
+        title: "Contract Declined",
+        description: "The contract has been declined.",
+      });
+    } catch (error) {
+      console.error("Error declining contract:", error);
+      toast({
+        title: "Error",
+        description: "Failed to decline the contract. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingContract(null);
+    }
+  };
+
+  const handleMarkAsDelivered = async (contractId: string) => {
+    if (!user) return;
+    
+    setProcessingContract(contractId);
+    try {
+      await updateDoc(doc(db, "contracts", contractId), {
+        status: "completed",
+        updatedAt: new Date().toISOString(),
+        deliveredDate: new Date().toISOString()
+      });
+      
+      // Update local state
+      setContracts(contracts.map(contract => 
+        contract.id === contractId ? {...contract, status: "completed"} : contract
+      ));
+      
+      toast({
+        title: "Marked as Delivered",
+        description: "The contract has been marked as delivered successfully.",
+      });
+    } catch (error) {
+      console.error("Error marking contract as delivered:", error);
+      toast({
+        title: "Error",
+        description: "Failed to mark the contract as delivered. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingContract(null);
+    }
   };
 
   if (loading) {
@@ -241,12 +337,29 @@ export function FarmerDashboard() {
                       <Button variant="outline">View Details</Button>
                       {status === "pending" && (
                         <div className="space-x-2">
-                          <Button variant="outline" className="text-red-500">Decline</Button>
-                          <Button>Accept</Button>
+                          <Button 
+                            variant="outline" 
+                            className="text-red-500" 
+                            onClick={() => handleDeclineContract(contract.id)}
+                            disabled={processingContract === contract.id}
+                          >
+                            {processingContract === contract.id ? "Processing..." : "Decline"}
+                          </Button>
+                          <Button 
+                            onClick={() => handleAcceptContract(contract.id)}
+                            disabled={processingContract === contract.id}
+                          >
+                            {processingContract === contract.id ? "Processing..." : "Accept"}
+                          </Button>
                         </div>
                       )}
                       {status === "active" && (
-                        <Button>Mark as Delivered</Button>
+                        <Button 
+                          onClick={() => handleMarkAsDelivered(contract.id)}
+                          disabled={processingContract === contract.id}
+                        >
+                          {processingContract === contract.id ? "Processing..." : "Mark as Delivered"}
+                        </Button>
                       )}
                     </CardFooter>
                   </Card>
